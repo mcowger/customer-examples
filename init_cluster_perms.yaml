@@ -1,0 +1,160 @@
+---
+# Create a PSP with no ability to escalate privileges, run as root, etc.
+# name "user-policy"
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: user-policy
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'docker/default'
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName:  'docker/default'
+    apparmor.security.beta.kubernetes.io/defaultProfileName:  'runtime/default'
+spec:
+  privileged: false
+  # Required to prevent escalations to root.
+  allowPrivilegeEscalation: false
+  # This is redundant with non-root + disallow privilege escalation,
+  # but we can provide it for defense in depth.
+  requiredDropCapabilities:
+    - ALL
+  # Allow core volume types.
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    # Assume that persistentVolumes set up by the cluster admin are safe to use.
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    # Require the container to run without root privileges.
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    # This policy assumes the nodes are using AppArmor rather than SELinux.
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+      # Forbid adding the root group.
+      - min: 1
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      # Forbid adding the root group.
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: false
+---
+# Create another PSP called "installer-policy" thats allowed to do almost anything
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: installer-policy
+spec:
+  privileged: true  # Don't allow privileged pods!
+  # The rest fills in some required fields.
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  runAsUser:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  volumes:
+  - '*'
+---
+#Create a ClusterRole thats for privileged users
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: restricted-psp-user
+rules:
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - user-policy
+  verbs:
+  - use
+---
+#Create a ClusterRole thats for unprived users
+# privileged-psp-user grants access to use the privileged PSP.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: privileged-psp-user
+rules:
+- apiGroups:
+  - policy
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - installer-policy
+  verbs:
+  - use
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* # Now create a regular user level role just for the omni namespace.
+kind: Role
+  apiVersion: rbac.authorization.k8s.io/v1beta1
+  metadata:
+    namespace: omni
+    name: regular-user-person
+  rules:
+  - apiGroups: ["", "extensions", "apps","storage.k8s.io","events.k8s.io","batch"]
+    resources: ["deployments", "replicasets", "pods", "services", "persistentvolumeclaims", "persistentvolumes","configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"] # You can also use ["*"]
+---
+#bind the a user (externally configured, exercise left to the reader) to the new role
+  kind: RoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1beta1
+  metadata:
+    name: regular-user-binding
+    namespace: omni
+  subjects:
+  - kind: User
+    name: mcowger-user
+    apiGroup: ""
+  roleRef:
+    kind: Role
+    name: regular-user-person
+    apiGroup: ""
+---
+#bind the 'installer-user' to the installer-policy for the whole cluster
+  kind: ClusterRoleBinding
+  apiVersion: rbac.authorization.k8s.io/v1beta1
+  metadata:
+    name: installer-user-binding
+    namespace: kube-system
+  subjects:
+  - kind: User
+    name: installer-user
+    apiGroup: ""
+  roleRef:
+    kind: ClusterRole
+    name: regular-user-person
+    apiGroup: ""
+---
+
+ */
