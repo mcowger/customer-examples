@@ -1,0 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pcc-deployment
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: pcc
+        version: "1.10" #APPLICATION VERSION
+    spec:
+      containers: 
+        - name: pcc
+          image: nginxdemos/hello:0.1
+          ports:
+            - name: http
+              containerPort: 80

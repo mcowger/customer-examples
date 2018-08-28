@@ -1,0 +1,13 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: pcc-ingress
+spec:
+  rules:
+  - host: pcc.cowger.us
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: blue-service
+          servicePort: 80
