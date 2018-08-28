@@ -3,7 +3,7 @@
 First we create a deployment of our application....this is just a shorter version of the deployment spec you already have, except we are going to add one field to the metadata that includes the application version:
 
 blue-deployment.yaml:
-```
+```yaml
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -25,11 +25,11 @@ spec:
 ```
 And we'll deploy that using kubectl:
 
-```
+```shell
 kubectl apply -f blue-deployment.yaml
 ```
 Next we need a service to reach that Deployment:
-```
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -54,7 +54,7 @@ At this point you can access the service over its NodePort using the port select
 Now that we have it up and running, we can experiment with deploying a new version:
 
 deployment-green.yaml
-```
+```yaml
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -79,13 +79,13 @@ In this one, we've updated the name of the deployment, along with the version nu
 
 So when we deploy this, the service still wont use it or expose it to the outside world because the 'version' label doesn't match.   Lets deploy that with:
 
-```
+```shell
 kubectl apply -f deployment-green.yaml
 ```
 
 Now here comes the clever part - all we have to do to switch things over is adjust (`patch`) the Service definition with the new version number.  We can do that by editing and reapplying the file, or with a single patch command:
 
-```
+```shell
 kubectl patch service pcc-service  -p '{"spec":{"selector":{"version":"1.11"}}}'
 ```
 
@@ -93,7 +93,7 @@ This updates the version label the service is looking for, which automatically c
 
 Now we can delete our old deployment:
 
-```
+```shell
 kubectl delete deployment pcc-deployment-blue
 ```
 
@@ -109,7 +109,7 @@ This method doens't involve switching labels or anything like that, but it isn't
 We start with a similar deployment and service:
 
 pcc-deployment-scaleover.yaml
-```
+```yaml
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -130,7 +130,7 @@ spec:
               containerPort: 80
 ```
 pcc-service.yaml
-```
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -151,7 +151,7 @@ Note that the deployment name is more basic, and the Service is no longer lookin
 
 Now, we simply `patch` the deployment, and let kubernetes update the images in a Rolling Update fashion - it does all sorts of clever stuff like giving the containers time to start/warm up, checking their health status before making them live, making sure we have enough running to handle the load, etc:
 
-```
+```shell
 kubectl patch deployment pcc-deployment  -p '{"spec": {"template": {"spec": {"containers": [{"name":"pcc","image": "nginxdemos/hello:0.2"}]}}}}'
 ```
 
