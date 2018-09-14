@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: idm-oes-ingress
+  namespace: idm-dev
+  annotations:
+    kubernetes.io/ingress.class: std-ingress-class
+    ingress.kubernetes.io/ssl-redirect: "true"
+    ingress.kubernetes.io/use-port-in-redirects: "true"
+spec:
+  tls:
+  - hosts:
+    - "idm-oes.px-npe1001.k8s.t-mobile.com"
+  rules:
+  - host: idm-oes.px-npe1001.k8s.t-mobile.com
+    http:
+      paths:
+      - backend:
+          serviceName: idm-service
+          servicePort: 7001
+        path: /
