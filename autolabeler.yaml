@@ -1,0 +1,71 @@
+---
+apiVersion: v1
+data:
+  script: |2+
+
+    wget -O kubectl  https://storage.googleapis.com/kubernetes-release/release/$(wget -q -O -  https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    chmod +x ./kubectl
+
+    ./kubectl config set-cluster local --server=https://$KUBERNETES_SERVICE_HOST --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    ./kubectl config set-context local --cluster=local
+
+    ./kubectl config use-context local
+    ./kubectl --token=`cat /var/run/secrets/kubernetes.io/serviceaccount/token` label nodes --all cluster=mine --overwrite=true
+
+kind: ConfigMap
+metadata:
+  name: node-labeler
+  namespace: pks-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-labeler
+  namespace: pks-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: node-labeler
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "nodes"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: node-labeler
+subjects:
+- kind: ServiceAccount
+  name: node-labeler
+  namespace: pks-system
+roleRef:
+  kind: ClusterRole
+  name: node-labeler
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: node-labeler
+  namespace: pks-system
+spec:
+  template:
+    spec:
+      serviceAccountName: node-labeler
+      containers:
+      - name: node-labeler
+        image: alpine
+        command: ["/bin/sh",  "/mnt/node-labeler/script"]
+        volumeMounts:
+        - name: node-labeler
+          mountPath: /mnt/node-labeler
+      volumes:
+      - name: node-labeler
+        configMap:
+          name: node-labeler
+      restartPolicy: Never
