@@ -48,24 +48,27 @@ roleRef:
   name: node-labeler
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: batch/v1
-kind: Job
+apiVersion: batch/v1beta1
+kind: CronJob
 metadata:
   name: node-labeler
   namespace: pks-system
 spec:
-  template:
+  schedule: "*/1 * * * *"
+  jobTemplate:
     spec:
-      serviceAccountName: node-labeler
-      containers:
-      - name: node-labeler
-        image: alpine
-        command: ["/bin/sh",  "/mnt/node-labeler/script"]
-        volumeMounts:
-        - name: node-labeler
-          mountPath: /mnt/node-labeler
-      volumes:
-      - name: node-labeler
-        configMap:
-          name: node-labeler
-      restartPolicy: Never
+      template:
+        spec:
+          serviceAccountName: node-labeler
+          containers:
+          - name: node-labeler
+            image: alpine
+            command: ["/bin/sh",  "/mnt/node-labeler/script"]
+            volumeMounts:
+            - name: node-labeler
+              mountPath: /mnt/node-labeler
+          volumes:
+          - name: node-labeler
+            configMap:
+              name: node-labeler
+          restartPolicy: Never
